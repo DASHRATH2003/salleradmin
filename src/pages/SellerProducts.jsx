@@ -208,22 +208,22 @@ const SellerProducts = () => {
 
         {/* Products Table - Desktop */}
         <div className="hidden md:block w-full overflow-x-auto">
-          <table className="w-full min-w-[800px]">
+          <table className="w-full min-w-[800px] table-fixed">
             <thead className="bg-gray-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-2/5">
                   Product Name
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/6">
                   Category
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/6">
                   Sub Category
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/6">
                   Price
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider w-1/12">
                   Actions
                 </th>
               </tr>
@@ -231,9 +231,9 @@ const SellerProducts = () => {
             <tbody className="bg-gray-800 divide-y divide-gray-700">
               {filteredProducts.map((product) => (
                 <tr key={product.id} className="hover:bg-gray-700">
-                  <td className="px-4 py-4 whitespace-nowrap">
+                  <td className="px-2 py-3 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-gray-600 rounded-lg mr-3 flex items-center justify-center overflow-hidden">
+                      <div className="w-8 h-8 bg-gray-600 rounded-lg mr-2 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {product.image ? (
                           <img 
                             src={product.image} 
@@ -249,31 +249,31 @@ const SellerProducts = () => {
                         )}
                         <span className="text-gray-300 text-xs hidden">IMG</span>
                       </div>
-                      <div>
-                        <div className="text-sm font-medium text-white">{product.name}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-white truncate">{product.name}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-gray-300">
                     {product.category}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-gray-300">
                     {product.subcategory || 'N/A'}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm text-gray-300">
                     ₹{product.price.toLocaleString()}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center justify-center space-x-2">
-                      <button className="text-blue-400 hover:text-blue-300">
+                  <td className="px-2 py-3 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center justify-center space-x-1">
+                      <button className="text-blue-400 hover:text-blue-300 p-1">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="text-green-400 hover:text-green-300">
+                      <button className="text-green-400 hover:text-green-300 p-1">
                         <Edit className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDeleteProduct(product.id)}
-                        className="text-red-400 hover:text-red-300"
+                        className="text-red-400 hover:text-red-300 p-1"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
