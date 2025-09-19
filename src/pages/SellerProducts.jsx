@@ -8,6 +8,9 @@ import { onAuthStateChanged } from 'firebase/auth'
 
 const SellerProducts = () => {
   const [searchTerm, setSearchTerm] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
   const [filterStatus, setFilterStatus] = useState('all')
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -69,6 +72,19 @@ const SellerProducts = () => {
     return () => unsubscribe()
   }, [])
 
+  // Click outside handler for suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSuggestions && !event.target.closest('.search-container')) {
+        setShowSuggestions(false)
+        setSelectedSuggestionIndex(-1)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showSuggestions])
+
   useEffect(() => {
     fetchProducts()
   }, [])
@@ -91,9 +107,102 @@ const SellerProducts = () => {
     }
   }
 
+  // Generate search suggestions based on search term
+  const generateSuggestions = (searchTerm) => {
+    if (!searchTerm.trim()) {
+      setSuggestions([])
+      return
+    }
+
+    const searchLower = searchTerm.toLowerCase().trim()
+    const suggestionSet = new Set()
+
+    products.forEach(product => {
+      // Add product names that match
+      if (product.name?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(product.name)
+      }
+      // Add categories that match
+      if (product.category?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(product.category)
+      }
+      // Add subcategories that match
+      if (product.subcategory?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(product.subcategory)
+      }
+      // Add brands that match
+      if (product.brand?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(product.brand)
+      }
+      // Add tags that match
+      if (product.tags) {
+        product.tags.forEach(tag => {
+          if (tag.toLowerCase().includes(searchLower)) {
+            suggestionSet.add(tag)
+          }
+        })
+      }
+    })
+
+    // Limit to first 5 suggestions
+    setSuggestions(Array.from(suggestionSet).slice(0, 5))
+  }
+
+  // Handle input change with suggestions
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearchTerm(value)
+    generateSuggestions(value)
+    setShowSuggestions(value.length > 0)
+    setSelectedSuggestionIndex(-1)
+  }
+
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestion) => {
+    setSearchTerm(suggestion)
+    setShowSuggestions(false)
+    setSelectedSuggestionIndex(-1)
+  }
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1)
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedSuggestionIndex >= 0) {
+          handleSuggestionClick(suggestions[selectedSuggestionIndex])
+        }
+        break
+      case 'Escape':
+        setShowSuggestions(false)
+        setSelectedSuggestionIndex(-1)
+        break
+    }
+  }
+
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    const searchLower = searchTerm.toLowerCase().trim()
+    const matchesSearch = 
+      product.name?.toLowerCase().includes(searchLower) ||
+      product.sku?.toLowerCase().includes(searchLower) ||
+      product.category?.toLowerCase().includes(searchLower) ||
+      product.subcategory?.toLowerCase().includes(searchLower) ||
+      product.brand?.toLowerCase().includes(searchLower) ||
+      product.description?.toLowerCase().includes(searchLower) ||
+      product.tags?.some(tag => tag.toLowerCase().includes(searchLower))
+    
     const matchesFilter = filterStatus === 'all' || product.status === filterStatus
     return matchesSearch && matchesFilter
   })
@@ -179,15 +288,37 @@ const SellerProducts = () => {
         <div className="p-4 border-b border-gray-700">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <div className="relative search-container">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
                 <input
                   type="text"
-                  placeholder="Search products..."
+                  placeholder="Search products by name, SKU, category, brand..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-white placeholder-gray-400"
+                  onChange={handleSearchChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => setShowSuggestions(searchTerm.length > 0)}
+                  className="pl-10 pr-4 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-white placeholder-gray-400 w-64"
                 />
+                
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-20">
+                    {suggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className={`px-4 py-2 cursor-pointer text-sm ${
+                          index === selectedSuggestionIndex
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-600'
+                        }`}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                      >
+                        {suggestion}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <Filter className="w-4 h-4 text-gray-400" />

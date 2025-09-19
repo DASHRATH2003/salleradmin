@@ -10,6 +10,9 @@ const OrderDetails = () => {
   const [orders, setOrders] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
 
   // Fetch orders from Firebase
   const fetchOrders = async () => {
@@ -57,6 +60,19 @@ const OrderDetails = () => {
     fetchOrders()
   }, [])
 
+  // Click outside handler for suggestions
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSuggestions && !event.target.closest('.search-container')) {
+        setShowSuggestions(false)
+        setSelectedSuggestionIndex(-1)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showSuggestions])
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'delivered': return 'bg-green-100 text-green-800'
@@ -78,9 +94,121 @@ const OrderDetails = () => {
     }
   }
 
+  // Generate suggestions for autocomplete
+  const generateSuggestions = (searchValue) => {
+    if (!searchValue.trim()) {
+      setSuggestions([])
+      return
+    }
+
+    const searchLower = searchValue.toLowerCase().trim()
+    const suggestionSet = new Set()
+
+    orders.forEach(order => {
+      // Order ID suggestions
+      if (order.id.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(order.id)
+      }
+      
+      // Customer name suggestions
+      if (order.customer?.name?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(order.customer.name)
+      }
+      
+      // Customer email suggestions
+      if (order.customer?.email?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(order.customer.email)
+      }
+      
+      // Customer phone suggestions
+      if (order.customer?.phone?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(order.customer.phone)
+      }
+      
+      // Product name suggestions
+      order.products?.forEach(product => {
+        if (product.name?.toLowerCase().includes(searchLower)) {
+          suggestionSet.add(product.name)
+        }
+        if (product.sku?.toLowerCase().includes(searchLower)) {
+          suggestionSet.add(product.sku)
+        }
+      })
+      
+      // Shipping address suggestions
+      if (order.shippingAddress?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(order.shippingAddress)
+      }
+      
+      // Payment method suggestions
+      if (order.paymentMethod?.toLowerCase().includes(searchLower)) {
+        suggestionSet.add(order.paymentMethod)
+      }
+    })
+
+    setSuggestions(Array.from(suggestionSet).slice(0, 8))
+  }
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearchTerm(value)
+    generateSuggestions(value)
+    setShowSuggestions(true)
+    setSelectedSuggestionIndex(-1)
+  }
+
+  // Handle suggestion click
+  const handleSuggestionClick = (suggestion) => {
+    setSearchTerm(suggestion)
+    setShowSuggestions(false)
+    setSelectedSuggestionIndex(-1)
+  }
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) return
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        )
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedSuggestionIndex >= 0) {
+          handleSuggestionClick(suggestions[selectedSuggestionIndex])
+        }
+        break
+      case 'Escape':
+        setShowSuggestions(false)
+        setSelectedSuggestionIndex(-1)
+        break
+    }
+  }
+
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const searchLower = searchTerm.toLowerCase().trim()
+    const matchesSearch = 
+      order.id.toLowerCase().includes(searchLower) ||
+      order.customer?.name?.toLowerCase().includes(searchLower) ||
+      order.customer?.email?.toLowerCase().includes(searchLower) ||
+      order.customer?.phone?.toLowerCase().includes(searchLower) ||
+      order.products?.some(product => 
+        product.name?.toLowerCase().includes(searchLower) ||
+        product.sku?.toLowerCase().includes(searchLower)
+      ) ||
+      order.shippingAddress?.toLowerCase().includes(searchLower) ||
+      order.paymentMethod?.toLowerCase().includes(searchLower)
+    
     const matchesFilter = filterStatus === 'all' || order.status === filterStatus
     return matchesSearch && matchesFilter
   })
@@ -236,15 +364,34 @@ const OrderDetails = () => {
         <div className="p-4 border-b border-gray-700">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <div className="relative search-container">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
                 <input
                   type="text"
-                  placeholder="Search orders..."
+                  placeholder="Search orders by ID, customer, product, address..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
+                  onChange={handleSearchChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => setShowSuggestions(true)}
+                  className="pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 w-64"
                 />
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                    {suggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className={`px-3 py-2 cursor-pointer text-sm text-gray-300 hover:bg-gray-600 ${
+                          index === selectedSuggestionIndex ? 'bg-gray-600' : ''
+                        }`}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                      >
+                        {suggestion}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <Filter className="w-4 h-4 text-gray-400" />
